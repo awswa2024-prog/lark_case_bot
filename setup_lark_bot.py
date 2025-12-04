@@ -119,6 +119,8 @@ def update_secrets(config: Dict, outputs: Dict):
     
     app_id = config['lark']['app_id']
     app_secret = config['lark']['app_secret']
+    encrypt_key = config['lark'].get('encrypt_key', '')
+    verification_token = config['lark'].get('verification_token', '')
     
     sm.update_secret(SecretId=outputs['AppIDSecretArn'], 
                      SecretString=json.dumps({"app_id": app_id}))
@@ -127,6 +129,16 @@ def update_secrets(config: Dict, outputs: Dict):
     sm.update_secret(SecretId=outputs['AppSecretSecretArn'], 
                      SecretString=json.dumps({"app_secret": app_secret}))
     print(f"   ✅ App Secret updated")
+    
+    if 'EncryptKeySecretArn' in outputs:
+        sm.update_secret(SecretId=outputs['EncryptKeySecretArn'], 
+                         SecretString=json.dumps({"encrypt_key": encrypt_key}))
+        print(f"   ✅ Encrypt Key updated")
+    
+    if 'VerificationTokenSecretArn' in outputs:
+        sm.update_secret(SecretId=outputs['VerificationTokenSecretArn'], 
+                         SecretString=json.dumps({"verification_token": verification_token}))
+        print(f"   ✅ Verification Token updated")
 
 
 def create_iam_role(account: Dict, lambda_role_arns: List[str]):

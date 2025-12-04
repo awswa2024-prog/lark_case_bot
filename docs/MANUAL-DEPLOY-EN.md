@@ -54,6 +54,8 @@ This document describes how to manually create all resources in AWS Console with
 |--------------|------|---------|
 | Secrets Manager | LarkCaseBot-app-id | Store Lark App ID |
 | Secrets Manager | LarkCaseBot-app-secret | Store Lark App Secret |
+| Secrets Manager | LarkCaseBot-encrypt-key | Store Lark Encrypt Key (optional) |
+| Secrets Manager | LarkCaseBot-verification-token | Store Lark Verification Token |
 | S3 | LarkCaseBot-DataBucket | Bot config and case data storage |
 | IAM Role | LarkCaseBot-MsgEventRole | MsgEventLambda execution role |
 | IAM Role | LarkCaseBot-CaseUpdateRole | CaseUpdateLambda execution role |
@@ -118,6 +120,46 @@ aws secretsmanager create-secret \
 aws secretsmanager create-secret \
   --name LarkCaseBot-app-secret \
   --secret-string '{"app_secret":"xxxxxxxxxxxxxxxx"}'
+```
+
+### 1.3 Create Encrypt Key Secret (Optional)
+
+Used to decrypt Lark events (if encryption is enabled).
+
+**Console Method:**
+
+1. Repeat the above steps
+2. Add key-value pair:
+   - Key: `encrypt_key`
+   - Value: `xxxxxxxxxxxxxxxx` (from Lark Event Subscription page, leave empty if not using encryption)
+3. Secret name: `LarkCaseBot-encrypt-key`
+
+**CLI Method:**
+
+```bash
+aws secretsmanager create-secret \
+  --name LarkCaseBot-encrypt-key \
+  --secret-string '{"encrypt_key":""}'
+```
+
+### 1.4 Create Verification Token Secret
+
+Used to verify request origin.
+
+**Console Method:**
+
+1. Repeat the above steps
+2. Add key-value pair:
+   - Key: `verification_token`
+   - Value: `xxxxxxxxxxxxxxxx` (from Lark Event Subscription page)
+3. Secret name: `LarkCaseBot-verification-token`
+
+**CLI Method:**
+
+```bash
+aws secretsmanager create-secret \
+  --name LarkCaseBot-verification-token \
+  --secret-string '{"verification_token":"xxxxxxxxxxxxxxxx"}'
 ```
 
 ---
@@ -268,7 +310,9 @@ aws iam attach-role-policy \
       ],
       "Resource": [
         "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-app-id*",
-        "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-app-secret*"
+        "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-app-secret*",
+        "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-encrypt-key*",
+        "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-verification-token*"
       ]
     },
     {
@@ -386,6 +430,8 @@ cd ..
 |-----|-------|
 | APP_ID_ARN | `arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-app-id-XXXXX` |
 | APP_SECRET_ARN | `arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-app-secret-XXXXX` |
+| ENCRYPT_KEY_ARN | `arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-encrypt-key-XXXXX` |
+| VERIFICATION_TOKEN_ARN | `arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-verification-token-XXXXX` |
 | BOT_CONFIG_TABLE | `LarkCaseBot-Config` |
 | CASE_TABLE | `LarkCaseBot-Cases` |
 | CFG_KEY | `LarkBotProfile-0` |
@@ -406,6 +452,8 @@ aws lambda create-function \
   --environment "Variables={
     APP_ID_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-app-id-XXXXX,
     APP_SECRET_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-app-secret-XXXXX,
+    ENCRYPT_KEY_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-encrypt-key-XXXXX,
+    VERIFICATION_TOKEN_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-verification-token-XXXXX,
     BOT_CONFIG_TABLE=LarkCaseBot-Config,
     CASE_TABLE=LarkCaseBot-Cases,
     CFG_KEY=LarkBotProfile-0,
@@ -784,8 +832,10 @@ aws s3api delete-bucket --bucket larkcasebot-data-${ACCOUNT_ID}
 # Delete Secrets Manager
 aws secretsmanager delete-secret --secret-id LarkCaseBot-app-id --force-delete-without-recovery
 aws secretsmanager delete-secret --secret-id LarkCaseBot-app-secret --force-delete-without-recovery
+aws secretsmanager delete-secret --secret-id LarkCaseBot-encrypt-key --force-delete-without-recovery
+aws secretsmanager delete-secret --secret-id LarkCaseBot-verification-token --force-delete-without-recovery
 ```
 
 ---
 
-**Last Updated**: 2025-12-03
+**Last Updated**: 2025-12-04

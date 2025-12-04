@@ -110,6 +110,26 @@ class LarkCaseBotStack(Stack):
             )
         )
 
+        # Secrets Manager for Lark Encrypt Key (optional, for event decryption)
+        encrypt_key_secret = secretsmanager.Secret(self, "EncryptKeySecret",
+            secret_name=f"{construct_id}-lark-encrypt-key",
+            description="Lark Bot Encrypt Key (optional, for event decryption)",
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                secret_string_template='{"encrypt_key":""}',
+                generate_string_key="placeholder"
+            )
+        )
+
+        # Secrets Manager for Lark Verification Token (for request verification)
+        verification_token_secret = secretsmanager.Secret(self, "VerificationTokenSecret",
+            secret_name=f"{construct_id}-lark-verification-token",
+            description="Lark Bot Verification Token (for request verification)",
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                secret_string_template='{"verification_token":""}',
+                generate_string_key="placeholder"
+            )
+        )
+
         # S3 bucket for bot data (config and cases)
         # Structure:
         #   config/{cfg_key}.json - Bot configuration
@@ -149,6 +169,8 @@ class LarkCaseBotStack(Stack):
         # Grant permissions
         app_id_secret.grant_read(msg_event_role)
         app_secret_secret.grant_read(msg_event_role)
+        encrypt_key_secret.grant_read(msg_event_role)
+        verification_token_secret.grant_read(msg_event_role)
         data_bucket.grant_read_write(msg_event_role)
 
         # Allow Lambda to assume roles for Support API
@@ -187,6 +209,8 @@ class LarkCaseBotStack(Stack):
             environment={
                 "APP_ID_ARN": app_id_secret.secret_arn,
                 "APP_SECRET_ARN": app_secret_secret.secret_arn,
+                "ENCRYPT_KEY_ARN": encrypt_key_secret.secret_arn,
+                "VERIFICATION_TOKEN_ARN": verification_token_secret.secret_arn,
                 "DATA_BUCKET": data_bucket.bucket_name,
                 "CFG_KEY": "LarkBotProfile-0",
                 "CASE_LANGUAGE": case_language.value_as_string,
@@ -382,6 +406,16 @@ class LarkCaseBotStack(Stack):
         CfnOutput(self, "AppSecretSecretArn",
             value=app_secret_secret.secret_arn,
             description="Secrets Manager ARN for Lark App Secret"
+        )
+
+        CfnOutput(self, "EncryptKeySecretArn",
+            value=encrypt_key_secret.secret_arn,
+            description="Secrets Manager ARN for Lark Encrypt Key"
+        )
+
+        CfnOutput(self, "VerificationTokenSecretArn",
+            value=verification_token_secret.secret_arn,
+            description="Secrets Manager ARN for Lark Verification Token"
         )
 
         # Note: AWSSupportAccessRole output removed - role is optional and created manually

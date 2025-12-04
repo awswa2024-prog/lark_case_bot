@@ -63,7 +63,7 @@ python3 setup_lark_bot.py setup
 
 ## 文档
 
-- [Lark 应用配置](docs/LARK-SETUP.md) - 创建应用、权限、事件订阅完整指南
+- [Lark 应用配置](docs/LARK-SETUP.md) - 创建应用、权限、事件订阅完整指南（包含 Encrypt Key 和 Verification Token）
 - [手动部署指南](docs/MANUAL-DEPLOY.md) - 不使用 CDK 的完整手动部署
 - [技术文档](docs/TECHNICAL.md) - 部署、开发、故障排查
 - [手动账号配置](docs/manual-account-setup.md) - 跨账号 IAM 配置

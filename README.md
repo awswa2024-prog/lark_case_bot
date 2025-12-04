@@ -64,7 +64,7 @@ This ensures **bidirectional sync** works automatically:
 
 ## Documentation
 
-- [Lark App Setup](docs/LARK-SETUP.md) - Complete guide for app creation, permissions, event subscription
+- [Lark App Setup](docs/LARK-SETUP.md) - Complete guide for app creation, permissions, event subscription (including Encrypt Key and Verification Token)
 - [Manual Deployment](docs/MANUAL-DEPLOY.md) - Full manual deployment without CDK
 - [Technical Docs](docs/TECHNICAL.md) - Deployment, development, troubleshooting
 - [Manual Account Setup](docs/manual-account-setup.md) - Cross-account IAM configuration

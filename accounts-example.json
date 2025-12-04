@@ -4,7 +4,9 @@
 
   "lark": {
     "app_id": "cli_xxxxxxxxxx",
-    "app_secret": "your_app_secret_here"
+    "app_secret": "your_app_secret_here",
+    "encrypt_key": "",
+    "verification_token": ""
   },
 
   "accounts": [

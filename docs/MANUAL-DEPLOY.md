@@ -54,6 +54,8 @@
 |---------|------|------|
 | Secrets Manager | LarkCaseBot-app-id | 存储 Lark App ID |
 | Secrets Manager | LarkCaseBot-app-secret | 存储 Lark App Secret |
+| Secrets Manager | LarkCaseBot-encrypt-key | 存储 Lark Encrypt Key（可选） |
+| Secrets Manager | LarkCaseBot-verification-token | 存储 Lark Verification Token |
 | S3 | LarkCaseBot-DataBucket | Bot 配置和工单数据存储 |
 | IAM Role | LarkCaseBot-MsgEventRole | MsgEventLambda 执行角色 |
 | IAM Role | LarkCaseBot-CaseUpdateRole | CaseUpdateLambda 执行角色 |
@@ -118,6 +120,46 @@ aws secretsmanager create-secret \
 aws secretsmanager create-secret \
   --name LarkCaseBot-app-secret \
   --secret-string '{"app_secret":"xxxxxxxxxxxxxxxx"}'
+```
+
+### 1.3 创建 Encrypt Key Secret（可选）
+
+用于解密 Lark 事件（如果启用了加密）。
+
+**Console 方式：**
+
+1. 重复上述步骤
+2. 添加键值对：
+   - Key: `encrypt_key`
+   - Value: `xxxxxxxxxxxxxxxx`（从 Lark 事件订阅页面获取，留空表示不使用加密）
+3. Secret name: `LarkCaseBot-encrypt-key`
+
+**CLI 方式：**
+
+```bash
+aws secretsmanager create-secret \
+  --name LarkCaseBot-encrypt-key \
+  --secret-string '{"encrypt_key":""}'
+```
+
+### 1.4 创建 Verification Token Secret
+
+用于验证请求来源。
+
+**Console 方式：**
+
+1. 重复上述步骤
+2. 添加键值对：
+   - Key: `verification_token`
+   - Value: `xxxxxxxxxxxxxxxx`（从 Lark 事件订阅页面获取）
+3. Secret name: `LarkCaseBot-verification-token`
+
+**CLI 方式：**
+
+```bash
+aws secretsmanager create-secret \
+  --name LarkCaseBot-verification-token \
+  --secret-string '{"verification_token":"xxxxxxxxxxxxxxxx"}'
 ```
 
 ---
@@ -268,7 +310,9 @@ aws iam attach-role-policy \
       ],
       "Resource": [
         "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-app-id*",
-        "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-app-secret*"
+        "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-app-secret*",
+        "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-encrypt-key*",
+        "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-verification-token*"
       ]
     },
     {
@@ -386,6 +430,8 @@ cd ..
 |-----|-------|
 | APP_ID_ARN | `arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-app-id-XXXXX` |
 | APP_SECRET_ARN | `arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-app-secret-XXXXX` |
+| ENCRYPT_KEY_ARN | `arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-encrypt-key-XXXXX` |
+| VERIFICATION_TOKEN_ARN | `arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-verification-token-XXXXX` |
 | BOT_CONFIG_TABLE | `LarkCaseBot-Config` |
 | CASE_TABLE | `LarkCaseBot-Cases` |
 | CFG_KEY | `LarkBotProfile-0` |
@@ -406,6 +452,8 @@ aws lambda create-function \
   --environment "Variables={
     APP_ID_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-app-id-XXXXX,
     APP_SECRET_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-app-secret-XXXXX,
+    ENCRYPT_KEY_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-encrypt-key-XXXXX,
+    VERIFICATION_TOKEN_ARN=arn:aws:secretsmanager:REGION:ACCOUNT:secret:LarkCaseBot-verification-token-XXXXX,
     BOT_CONFIG_TABLE=LarkCaseBot-Config,
     CASE_TABLE=LarkCaseBot-Cases,
     CFG_KEY=LarkBotProfile-0,
@@ -784,6 +832,8 @@ aws s3api delete-bucket --bucket larkcasebot-data-${ACCOUNT_ID}
 # 删除 Secrets Manager
 aws secretsmanager delete-secret --secret-id LarkCaseBot-app-id --force-delete-without-recovery
 aws secretsmanager delete-secret --secret-id LarkCaseBot-app-secret --force-delete-without-recovery
+aws secretsmanager delete-secret --secret-id LarkCaseBot-encrypt-key --force-delete-without-recovery
+aws secretsmanager delete-secret --secret-id LarkCaseBot-verification-token --force-delete-without-recovery
 ```
 
 ---

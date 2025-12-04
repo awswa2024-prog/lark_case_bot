@@ -41,7 +41,12 @@
 - **App ID**: `cli_xxxxxxxxxx`
 - **App Secret**: `xxxxxxxxxxxxxxxx`
 
-⚠️ 妥善保管这些凭证，后续部署需要使用。
+在 **事件订阅** 页面获取（可选）：
+
+- **Encrypt Key**: 加密密钥（用于解密事件，可选）
+- **Verification Token**: 验证令牌（用于验证请求来源）
+
+⚠️ 妥善保管这些凭证，后续部署需要使用。这些值将存储在 AWS Secrets Manager 中。
 
 ---
 
@@ -176,11 +181,17 @@ aws cloudformation describe-stacks \
 
 1. 找到 **加密策略** 设置
 2. 选择 **不加密**（推荐）或配置 Encrypt Key
+3. 如果启用加密，将 **Encrypt Key** 复制到 `accounts.json` 的 `lark.encrypt_key` 字段
 
 ### 4.3 配置 Verification Token
 
 1. 在 **事件订阅** 页面找到 **Verification Token**
-2. 记录此 Token（可选，用于验证请求来源）
+2. 将此 Token 复制到 `accounts.json` 的 `lark.verification_token` 字段
+3. 运行 `python setup_lark_bot.py setup` 将凭证更新到 Secrets Manager
+
+**存储位置**: 这些凭证存储在 AWS Secrets Manager 中：
+- `LarkCaseBotStack-lark-encrypt-key`
+- `LarkCaseBotStack-lark-verification-token`
 
 ---
 
