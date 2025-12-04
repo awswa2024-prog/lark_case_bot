@@ -1,0 +1,22 @@
+{
+  "_comment": "Copy this file to accounts.json and fill in real values: cp accounts-example.json accounts.json",
+  "_region_note": "IMPORTANT: Stack MUST be deployed to us-east-1. AWS Support API and EventBridge events are ONLY available in us-east-1. This is hardcoded and cannot be changed.",
+
+  "lark": {
+    "app_id": "cli_xxxxxxxxxx",
+    "app_secret": "your_app_secret_here"
+  },
+
+  "accounts": [
+    {
+      "account_id": "123456789012",
+      "account_name": "Production",
+      "profile": "default"
+    },
+    {
+      "account_id": "210987654321",
+      "account_name": "Staging",
+      "profile": "staging"
+    }
+  ]
+}

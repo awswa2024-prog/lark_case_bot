@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+ENV/
+
+# CDK
+cdk.out/
+.cdk.staging/
+cdk-destroy-out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AWS
+*.pem
+*.key
+
+# Local test files
+test_*.py
+*_test.py
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+*.backup
+
+# Build artifacts
+*.zip
+lambda_deployment.zip
+
+# Secrets (just in case)
+secrets.json
+credentials.json
+
+# Real configuration (contains credentials and AWS account IDs)
+accounts.json
+config-backup-*.json
+
+# Data dumps (may contain sensitive data)
+s3-*.json
