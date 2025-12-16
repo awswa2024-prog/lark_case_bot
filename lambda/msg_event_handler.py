@@ -1705,6 +1705,7 @@ def handle_message_receive(event_data: Dict[str, Any]) -> Dict[str, Any]:
         return {'statusCode': 200, 'body': json.dumps({'message': 'OK'})}
     
     elif text.startswith('history') or text.startswith('历史'):
+        is_chinese = DEFAULT_LANGUAGE == 'zh'
         # Use global default language for bot responses
         no_history_msg = get_message(DEFAULT_LANGUAGE, 'no_history')
         
@@ -2317,8 +2318,11 @@ def process_case_submission_async(action_value: Dict[str, Any],
         send_message(chat_id, 'text', {'text': get_message(DEFAULT_LANGUAGE, 'config_error')})
         return
     
-    # Create case directly with default description
-    default_description = f"Case created, awaiting detailed description.\n\nIn case chat, @bot [content] to sync message to AWS Support.\n\nSuggested info:\n- Issue time and timezone\n- Resource IDs and region\n- Issue symptoms\n- Business impact\n- Contact info"
+    # Create case directly with default description (localized)
+    if CASE_LANGUAGE == 'zh':
+        default_description = "工单已创建，等待详细描述。\n\n在工单群中，@bot [内容] 可同步消息到 AWS Support。\n\n建议提供以下信息：\n- 问题发生时间和时区\n- 资源ID和区域\n- 问题现象\n- 业务影响\n- 联系方式"
+    else:
+        default_description = "Case created, awaiting detailed description.\n\nIn case chat, @bot [content] to sync message to AWS Support.\n\nSuggested info:\n- Issue time and timezone\n- Resource IDs and region\n- Issue symptoms\n- Business impact\n- Contact info"
     
     result = create_support_case(
         role_arn=role_arn,
