@@ -307,6 +307,10 @@ aws iam attach-role-policy \
 
 **内联策略 (msg-event-policy.json)：**
 
+> ⚠️ **重要**: 将下方策略中的 `ACCOUNT_ID` 替换为你的 12 位 AWS 账号 ID。
+>
+> 💡 **关于 Secret ARN 中的 `*`**: Secrets Manager 会自动在 secret 名称后添加 6 位随机后缀（如 `-AbCdEf`），因此策略使用 `LarkCaseBot-app-id*` 来匹配。如果你需要更严格的权限控制，可以在创建 secret 后，将 `*` 替换为完整的 ARN（从 Secrets Manager Console 复制）。
+
 ```json
 {
   "Version": "2012-10-17",
@@ -314,26 +318,19 @@ aws iam attach-role-policy \
     {
       "Sid": "SecretsManagerAccess",
       "Effect": "Allow",
-      "Action": [
-        "secretsmanager:GetSecretValue"
-      ],
+      "Action": ["secretsmanager:GetSecretValue"],
       "Resource": [
-        "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-app-id*",
-        "arn:aws:secretsmanager:*:*:secret:LarkCaseBot-app-secret*"
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-id*",
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret*"
       ]
     },
     {
       "Sid": "S3Access",
       "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:DeleteObject",
-        "s3:ListBucket"
-      ],
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
       "Resource": [
-        "arn:aws:s3:::larkcasebot-data-*",
-        "arn:aws:s3:::larkcasebot-data-*/*"
+        "arn:aws:s3:::larkcasebot-data-ACCOUNT_ID",
+        "arn:aws:s3:::larkcasebot-data-ACCOUNT_ID/*"
       ]
     },
     {
@@ -349,11 +346,15 @@ aws iam attach-role-policy \
       "Sid": "LambdaSelfInvoke",
       "Effect": "Allow",
       "Action": "lambda:InvokeFunction",
-      "Resource": "arn:aws:lambda:*:*:function:LarkCaseBot-MsgEvent"
+      "Resource": "arn:aws:lambda:us-east-1:ACCOUNT_ID:function:LarkCaseBot-MsgEvent"
     }
   ]
 }
 ```
+
+> 💡 **关于 AssumeRole 中的 `*`**: 
+> - `arn:aws:iam::*:role/AWSSupportAccessRole` 允许访问任意账户的 Support API 角色。如果只需支持特定账户，可替换为具体账户 ID 列表，如：`arn:aws:iam::111122223333:role/AWSSupportAccessRole`
+> - `LarkSupportCaseApiAll*` 中的 `*` 用于匹配可能的角色名后缀
 
 **CLI 方式：**
 
@@ -383,7 +384,7 @@ aws iam put-role-policy \
 2. Trusted entity type: **AWS service** → Use case: **Lambda**
 3. 添加权限：勾选 `AWSLambdaBasicExecutionRole`
 4. Role name: `LarkCaseBot-CaseUpdateRole`
-5. 创建后添加内联策略（与 MsgEventRole 类似，但不需要 LambdaSelfInvoke）：
+5. 创建后添加内联策略（将 `ACCOUNT_ID` 替换为你的账号 ID）：
 
 ```json
 {
@@ -394,15 +395,15 @@ aws iam put-role-policy \
       "Effect": "Allow",
       "Action": ["secretsmanager:GetSecretValue"],
       "Resource": [
-        "arn:aws:secretsmanager:us-east-1:*:secret:LarkCaseBot-app-id*",
-        "arn:aws:secretsmanager:us-east-1:*:secret:LarkCaseBot-app-secret*"
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-id*",
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret*"
       ]
     },
     {
       "Sid": "S3Access",
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
-      "Resource": ["arn:aws:s3:::larkcasebot-data-*", "arn:aws:s3:::larkcasebot-data-*/*"]
+      "Resource": ["arn:aws:s3:::larkcasebot-data-ACCOUNT_ID", "arn:aws:s3:::larkcasebot-data-ACCOUNT_ID/*"]
     },
     {
       "Sid": "AssumeRoleForSupport",
@@ -439,7 +440,36 @@ aws iam put-role-policy \
 2. Trusted entity type: **AWS service** → Use case: **Lambda**
 3. 添加权限：勾选 `AWSLambdaBasicExecutionRole`
 4. Role name: `LarkCaseBot-CasePollerRole`
-5. 创建后添加内联策略（与 CaseUpdateRole 相同）
+5. 创建后添加内联策略（将 `ACCOUNT_ID` 替换为你的账号 ID）：
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SecretsManagerAccess",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:GetSecretValue"],
+      "Resource": [
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-id*",
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret*"
+      ]
+    },
+    {
+      "Sid": "S3Access",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::larkcasebot-data-ACCOUNT_ID", "arn:aws:s3:::larkcasebot-data-ACCOUNT_ID/*"]
+    },
+    {
+      "Sid": "AssumeRoleForSupport",
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": ["arn:aws:iam::*:role/AWSSupportAccessRole", "arn:aws:iam::*:role/LarkSupportCaseApiAll*"]
+    }
+  ]
+}
+```
 
 **CLI 方式：**
 
@@ -455,12 +485,73 @@ aws iam attach-role-policy \
 aws iam put-role-policy \
   --role-name LarkCaseBot-CasePollerRole \
   --policy-name CasePollerPolicy \
-  --policy-document file://case-update-policy.json
+  --policy-document file://case-poller-policy.json
+```
+
+### 3.5 创建 GroupCleanupRole
+
+**Console 方式：**
+
+1. 进入 AWS Console → IAM → Roles → **Create role**
+2. Trusted entity type: **AWS service** → Use case: **Lambda**
+3. 添加权限：勾选 `AWSLambdaBasicExecutionRole`
+4. Role name: `LarkCaseBot-GroupCleanupRole`
+5. 创建后添加内联策略（将 `ACCOUNT_ID` 替换为你的账号 ID）：
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SecretsManagerAccess",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:GetSecretValue"],
+      "Resource": [
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-id*",
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret*"
+      ]
+    },
+    {
+      "Sid": "S3Access",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::larkcasebot-data-ACCOUNT_ID", "arn:aws:s3:::larkcasebot-data-ACCOUNT_ID/*"]
+    }
+  ]
+}
+```
+
+> 💡 **注意**: GroupCleanupRole 不需要 `AssumeRoleForSupport` 权限，因为它只读取 S3 数据和调用 Lark API。
+
+**CLI 方式：**
+
+```bash
+aws iam create-role \
+  --role-name LarkCaseBot-GroupCleanupRole \
+  --assume-role-policy-document file://lambda-trust-policy.json
+
+aws iam attach-role-policy \
+  --role-name LarkCaseBot-GroupCleanupRole \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+aws iam put-role-policy \
+  --role-name LarkCaseBot-GroupCleanupRole \
+  --policy-name GroupCleanupPolicy \
+  --policy-document file://group-cleanup-policy.json
 ```
 
 ---
 
 ## Step 4: 创建 Lambda 函数
+
+### Lambda 函数总览
+
+| Lambda | Handler | 执行角色 | 超时 | 内存 | 触发器 |
+|--------|---------|---------|------|------|--------|
+| MsgEvent | `msg_event_handler.lambda_handler` | MsgEventRole | 60s | 1024MB | API Gateway |
+| CaseUpdate | `case_update_handler.lambda_handler` | CaseUpdateRole | 30s | 256MB | EventBridge (aws.support) |
+| CasePoller | `case_poller.lambda_handler` | CasePollerRole | 300s | 512MB | EventBridge (每 10 分钟) |
+| GroupCleanup | `group_cleanup.lambda_handler` | GroupCleanupRole | 300s | 256MB | EventBridge (每小时) |
 
 ### 4.1 准备代码包
 
@@ -470,7 +561,35 @@ zip -r ../lambda-package.zip .
 cd ..
 ```
 
+---
+
 ### 4.2 创建 MsgEventLambda
+
+**配置概览：**
+
+| 配置项 | 值 |
+|-------|-----|
+| 函数名 | `LarkCaseBot-MsgEvent` |
+| Handler | `msg_event_handler.lambda_handler` |
+| 执行角色 | `LarkCaseBot-MsgEventRole` |
+| 超时 | 60 秒 |
+| 内存 | 1024 MB |
+| 触发器 | API Gateway（Lark Webhook） |
+
+**环境变量：**
+
+| Key | Value | 说明 |
+|-----|-------|------|
+| APP_ID_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-id-XXXXX` | Lark App ID |
+| APP_SECRET_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret-XXXXX` | Lark App Secret |
+| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶 |
+| CFG_KEY | `LarkBotProfile-0` | 配置键名 |
+| CASE_LANGUAGE | `zh` | 工单语言 (zh/en/ja/ko) |
+| USER_WHITELIST | `false` | 是否启用用户白名单 |
+
+> ⚠️ **注意**: 
+> - 将 `ACCOUNT_ID` 替换为你的实际 AWS 账号 ID
+> - Secret ARN 末尾的 `-XXXXX` 是自动生成的，需要从 Secrets Manager 复制完整 ARN
 
 **Console 方式：**
 
@@ -500,21 +619,7 @@ cd ..
    - 点击 **Save**
 10. 添加环境变量：
     - 点击 **Configuration** → **Environment variables** → **Edit**
-    - 添加以下变量：
-
-| Key | Value |
-|-----|-------|
-| APP_ID_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT:secret:LarkCaseBot-app-id-XXXXX` |
-| APP_SECRET_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT:secret:LarkCaseBot-app-secret-XXXXX` |
-| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` |
-| CFG_KEY | `LarkBotProfile-0` |
-| CASE_LANGUAGE | `zh` |
-| USER_WHITELIST | `false` |
-
-> ⚠️ **注意**: 
-> - 将 `ACCOUNT` 和 `ACCOUNT_ID` 替换为你的实际 AWS 账号 ID
-> - Secret ARN 末尾的 `-XXXXX` 是自动生成的，需要从 Secrets Manager 复制完整 ARN
-> - S3 版本使用 `DATA_BUCKET` 环境变量，不再使用 DynamoDB 表
+    - 按上方环境变量表格添加所有变量
 
 **CLI 方式：**
 
@@ -540,7 +645,31 @@ aws lambda create-function \
   }"
 ```
 
+---
+
 ### 4.3 创建 CaseUpdateLambda
+
+**配置概览：**
+
+| 配置项 | 值 |
+|-------|-----|
+| 函数名 | `LarkCaseBot-CaseUpdate` |
+| Handler | `case_update_handler.lambda_handler` |
+| 执行角色 | `LarkCaseBot-CaseUpdateRole` |
+| 超时 | 30 秒 |
+| 内存 | 256 MB |
+| 触发器 | EventBridge 规则 `LarkCaseBot-CaseUpdate`（工单更新事件） |
+
+**环境变量：**
+
+| Key | Value | 说明 |
+|-----|-------|------|
+| APP_ID_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-id-XXXXX` | Lark App ID |
+| APP_SECRET_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret-XXXXX` | Lark App Secret |
+| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶 |
+| AUTO_DISSOLVE_HOURS | `72` | 工单解决后自动解散群的小时数 |
+
+**CLI 方式：**
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -562,7 +691,32 @@ aws lambda create-function \
   }"
 ```
 
+---
+
 ### 4.4 创建 CasePollerLambda
+
+**配置概览：**
+
+| 配置项 | 值 |
+|-------|-----|
+| 函数名 | `LarkCaseBot-CasePoller` |
+| Handler | `case_poller.lambda_handler` |
+| 执行角色 | `LarkCaseBot-CasePollerRole` |
+| 超时 | 300 秒（5 分钟） |
+| 内存 | 512 MB |
+| 触发器 | EventBridge 规则 `LarkCaseBot-Poller`（每 10 分钟） |
+
+**环境变量：**
+
+| Key | Value | 说明 |
+|-----|-------|------|
+| APP_ID_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-id-XXXXX` | Lark App ID |
+| APP_SECRET_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret-XXXXX` | Lark App Secret |
+| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶 |
+| CFG_KEY | `LarkBotProfile-0` | 配置键名 |
+| AUTO_DISSOLVE_HOURS | `72` | 工单解决后自动解散群的小时数 |
+
+**CLI 方式：**
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -585,9 +739,31 @@ aws lambda create-function \
   }"
 ```
 
-### 4.5 创建 GroupCleanupLambda（自动解散群）
+---
 
-此 Lambda 每小时运行一次，自动解散已解决超过指定时间的工单群。
+### 4.5 创建 GroupCleanupLambda
+
+**配置概览：**
+
+| 配置项 | 值 |
+|-------|-----|
+| 函数名 | `LarkCaseBot-GroupCleanup` |
+| Handler | `group_cleanup.lambda_handler` |
+| 执行角色 | `LarkCaseBot-GroupCleanupRole` |
+| 超时 | 300 秒（5 分钟） |
+| 内存 | 256 MB |
+| 触发器 | EventBridge 规则 `LarkCaseBot-GroupCleanup`（每小时） |
+
+**环境变量：**
+
+| Key | Value | 说明 |
+|-----|-------|------|
+| APP_ID_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-id-XXXXX` | Lark App ID |
+| APP_SECRET_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret-XXXXX` | Lark App Secret |
+| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶 |
+| AUTO_DISSOLVE_HOURS | `72` | 工单解决后自动解散群的小时数 |
+
+**CLI 方式：**
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -596,7 +772,7 @@ aws lambda create-function \
   --function-name LarkCaseBot-GroupCleanup \
   --runtime python3.12 \
   --handler group_cleanup.lambda_handler \
-  --role arn:aws:iam::${ACCOUNT_ID}:role/LarkCaseBot-CasePollerRole \
+  --role arn:aws:iam::${ACCOUNT_ID}:role/LarkCaseBot-GroupCleanupRole \
   --zip-file fileb://lambda-package.zip \
   --timeout 300 \
   --memory-size 256 \
@@ -609,11 +785,19 @@ aws lambda create-function \
   }"
 ```
 
-**环境变量说明：**
+---
 
-| 变量 | 说明 | 默认值 |
-|-----|------|-------|
-| `AUTO_DISSOLVE_HOURS` | 工单解决后多少小时自动解散群 | 72 |
+### 4.6 环境变量说明
+
+| 变量 | 说明 | 使用的 Lambda |
+|-----|------|--------------|
+| `APP_ID_ARN` | Lark App ID 的 Secrets Manager ARN | 全部 |
+| `APP_SECRET_ARN` | Lark App Secret 的 Secrets Manager ARN | 全部 |
+| `DATA_BUCKET` | S3 数据桶名称 | 全部 |
+| `CFG_KEY` | S3 配置键名 | MsgEvent, CasePoller |
+| `CASE_LANGUAGE` | 工单语言 (zh/en/ja/ko) | MsgEvent |
+| `USER_WHITELIST` | 是否启用用户白名单 | MsgEvent |
+| `AUTO_DISSOLVE_HOURS` | 工单解决后自动解散群的小时数 | CaseUpdate, CasePoller, GroupCleanup |
 
 > 💡 **提示**: 将 `AUTO_DISSOLVE_HOURS` 设为你需要的小时数，例如 48 表示工单解决后 48 小时自动解散群。
 
@@ -890,6 +1074,8 @@ aws events create-event-bus \
   --region us-east-1
 
 # 允许其他账户发送事件到此 Bus
+# 💡 --principal "*" 允许任意账户发送事件。如需更严格控制，可改为具体账户 ID，如 --principal "111122223333"
+# 或使用 put-permission 多次添加多个账户
 aws events put-permission \
   --event-bus-name LarkCaseBot-case-event-bus \
   --action events:PutEvents \
