@@ -41,12 +41,7 @@
 - **App ID**: `cli_xxxxxxxxxx`
 - **App Secret**: `xxxxxxxxxxxxxxxx`
 
-在 **事件订阅** 页面获取（可选）：
-
-- **Encrypt Key**: 加密密钥（用于解密事件，可选）
-- **Verification Token**: 验证令牌（用于验证请求来源）
-
-⚠️ 妥善保管这些凭证，后续部署需要使用。这些值将存储在 AWS Secrets Manager 中。
+⚠️ 妥善保管这些凭证，后续部署需要使用。
 
 ---
 
@@ -57,7 +52,43 @@
 1. 在应用管理页面，点击左侧 **权限管理**
 2. 搜索并添加以下权限
 
-### 2.2 必需权限列表（共 20 个）
+### 2.2 快速导入权限（推荐）
+
+点击 **批量开通** 或 **导入**，粘贴以下 JSON：
+
+```json
+{
+  "scopes": {
+    "tenant": [
+      "contact:contact.base:readonly",
+      "contact:user.base:readonly",
+      "contact:user.email:readonly",
+      "contact:user.employee_id:readonly",
+      "docs:document.media:upload",
+      "im:chat",
+      "im:chat.members:read",
+      "im:chat.members:write_only",
+      "im:chat:create",
+      "im:chat:delete",
+      "im:chat:readonly",
+      "im:message",
+      "im:message.group_at_msg:readonly",
+      "im:message.group_msg:readonly",
+      "im:message.p2p_msg:readonly",
+      "im:message:readonly",
+      "im:message:send_as_bot",
+      "im:resource"
+    ],
+    "user": []
+  }
+}
+```
+
+> 💡 **提示**: 使用 JSON 导入可以一次性添加所有权限，无需逐个搜索。
+
+### 2.3 手动添加权限（备选）
+
+如果无法使用 JSON 导入，可手动搜索并添加以下权限：
 
 | 权限 Scope | 权限名称 | 用途 |
 |-----------|---------|------|
@@ -73,16 +104,18 @@
 | `im:chat:delete` | 解散群 | 解散工单群 |
 | `im:chat:readonly` | 获取群组信息 | 读取群信息 |
 | `im:message` | 获取与发送单聊、群组消息 | 核心消息功能 |
-| `im:message.file:readonly` | 获取消息中的文件内容 | 下载附件文件 |
 | `im:message.group_at_msg:readonly` | 接收群聊中@机器人消息事件 | 响应 @机器人 |
 | `im:message.group_msg:readonly` | 获取群聊中所有的用户聊天消息 | 同步消息到 AWS |
 | `im:message.p2p_msg:readonly` | 读取用户发给机器人的单聊消息 | 处理私聊命令 |
 | `im:message:readonly` | 获取单聊、群组消息 | 读取历史消息 |
 | `im:message:send_as_bot` | 以应用的身份发消息 | 机器人发消息 |
 | `im:resource` | 获取与上传图片或文件资源 | 处理图片文件 |
-| `im:resource:readonly` | 读取图片或文件资源 | 下载文件资源 |
 
-### 2.3 权限分类说明
+> ⚠️ **注意**: JSON 中包含 18 个权限。如需文件下载功能，还需手动添加：
+> - `im:message.file:readonly` - 获取消息中的文件内容
+> - `im:resource:readonly` - 读取图片或文件资源
+
+### 2.4 权限分类说明
 
 #### 通讯录权限（用户信息）
 
@@ -181,17 +214,11 @@ aws cloudformation describe-stacks \
 
 1. 找到 **加密策略** 设置
 2. 选择 **不加密**（推荐）或配置 Encrypt Key
-3. 如果启用加密，将 **Encrypt Key** 复制到 `accounts.json` 的 `lark.encrypt_key` 字段
 
 ### 4.3 配置 Verification Token
 
 1. 在 **事件订阅** 页面找到 **Verification Token**
-2. 将此 Token 复制到 `accounts.json` 的 `lark.verification_token` 字段
-3. 运行 `python setup_lark_bot.py setup` 将凭证更新到 Secrets Manager
-
-**存储位置**: 这些凭证存储在 AWS Secrets Manager 中：
-- `LarkCaseBotStack-lark-encrypt-key`
-- `LarkCaseBotStack-lark-verification-token`
+2. 记录此 Token（可选，用于验证请求来源）
 
 ---
 
