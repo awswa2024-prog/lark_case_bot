@@ -397,10 +397,7 @@ aws iam attach-role-policy \
       "Sid": "AssumeRoleForSupport",
       "Effect": "Allow",
       "Action": "sts:AssumeRole",
-      "Resource": [
-        "arn:aws:iam::*:role/LarkCaseBot-SupportApiRole",
-        "arn:aws:iam::*:role/LarkCaseBot-SupportApiRole"
-      ]
+      "Resource": "arn:aws:iam::*:role/LarkCaseBot-SupportApiRole"
     },
     {
       "Sid": "LambdaSelfInvoke",
@@ -412,9 +409,7 @@ aws iam attach-role-policy \
 }
 ```
 
-> 💡 **关于 AssumeRole 中的 `*`**: 
-> - `arn:aws:iam::*:role/LarkCaseBot-SupportApiRole` 允许访问任意账户的 Support API 角色。如果只需支持特定账户，可替换为具体账户 ID 列表，如：`arn:aws:iam::111122223333:role/LarkCaseBot-SupportApiRole`
-> - `LarkCaseBot-SupportApiRole` 中的 `*` 用于匹配可能的角色名后缀
+> 💡 **关于 AssumeRole 中的 `*`**: `arn:aws:iam::*:role/LarkCaseBot-SupportApiRole` 允许访问任意账户的 Support API 角色。如果只需支持特定账户，可替换为具体账户 ID 列表，如：`arn:aws:iam::111122223333:role/LarkCaseBot-SupportApiRole`
 
 **CLI 方式：**
 
@@ -469,7 +464,7 @@ aws iam put-role-policy \
       "Sid": "AssumeRoleForSupport",
       "Effect": "Allow",
       "Action": "sts:AssumeRole",
-      "Resource": ["arn:aws:iam::*:role/LarkCaseBot-SupportApiRole", "arn:aws:iam::*:role/LarkCaseBot-SupportApiRole"]
+      "Resource": "arn:aws:iam::*:role/LarkCaseBot-SupportApiRole"
     }
   ]
 }
@@ -525,7 +520,7 @@ aws iam put-role-policy \
       "Sid": "AssumeRoleForSupport",
       "Effect": "Allow",
       "Action": "sts:AssumeRole",
-      "Resource": ["arn:aws:iam::*:role/LarkCaseBot-SupportApiRole", "arn:aws:iam::*:role/LarkCaseBot-SupportApiRole"]
+      "Resource": "arn:aws:iam::*:role/LarkCaseBot-SupportApiRole"
     }
   ]
 }
@@ -1400,5 +1395,3 @@ aws secretsmanager delete-secret --secret-id LarkCaseBot-app-secret --force-dele
 ```
 
 ---
-
-**最后更新**: 2025-12-16
