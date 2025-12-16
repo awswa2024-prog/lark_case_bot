@@ -1023,6 +1023,8 @@ aws lambda add-permission \
 
 ### 6.2 Scheduled Polling Rule
 
+> 💡 **Note**: When creating a rule, AWS Console may show a hint to use the "Scheduler" builder. You can ignore this - EventBridge Rules with schedule expressions still work and are what CDK deploys.
+
 **Console Method:**
 
 1. Go to AWS Console → EventBridge → Rules
@@ -1032,6 +1034,7 @@ aws lambda add-permission \
    - Description: `Poll AWS Support case status every 10 minutes`
    - Event bus: **default**
    - Rule type: **Schedule**
+   - Click **Continue in EventBridge Scheduler** if prompted, or **Continue to create rule** to stay with Rules
    - Click **Next**
 4. Step 2 - Define schedule:
    - Schedule pattern: **A schedule that runs at a regular rate**
@@ -1055,9 +1058,10 @@ aws events put-rule \
   --region us-east-1
 
 # Add target
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 aws events put-targets \
   --rule LarkCaseBot-Poller \
-  --targets "Id"="1","Arn"="arn:aws:lambda:us-east-1:ACCOUNT:function:LarkCaseBot-CasePoller" \
+  --targets "Id"="1","Arn"="arn:aws:lambda:us-east-1:${ACCOUNT_ID}:function:LarkCaseBot-CasePoller" \
   --region us-east-1
 
 # Add Lambda permission
@@ -1066,7 +1070,7 @@ aws lambda add-permission \
   --statement-id eventbridge-schedule \
   --action lambda:InvokeFunction \
   --principal events.amazonaws.com \
-  --source-arn arn:aws:events:us-east-1:ACCOUNT:rule/LarkCaseBot-Poller
+  --source-arn arn:aws:events:us-east-1:${ACCOUNT_ID}:rule/LarkCaseBot-Poller
 ```
 
 ### 6.3 Group Auto-Dissolve Rule
@@ -1080,6 +1084,7 @@ aws lambda add-permission \
    - Description: `Auto-dissolve resolved case groups every hour`
    - Event bus: **default**
    - Rule type: **Schedule**
+   - Click **Continue to create rule** if prompted about Scheduler
    - Click **Next**
 4. Step 2 - Define schedule:
    - Schedule pattern: **A schedule that runs at a regular rate**
@@ -1103,9 +1108,10 @@ aws events put-rule \
   --region us-east-1
 
 # Add target
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 aws events put-targets \
   --rule LarkCaseBot-GroupCleanup \
-  --targets "Id"="1","Arn"="arn:aws:lambda:us-east-1:ACCOUNT:function:LarkCaseBot-GroupCleanup" \
+  --targets "Id"="1","Arn"="arn:aws:lambda:us-east-1:${ACCOUNT_ID}:function:LarkCaseBot-GroupCleanup" \
   --region us-east-1
 
 # Add Lambda permission
@@ -1114,7 +1120,7 @@ aws lambda add-permission \
   --statement-id eventbridge-schedule \
   --action lambda:InvokeFunction \
   --principal events.amazonaws.com \
-  --source-arn arn:aws:events:us-east-1:ACCOUNT:rule/LarkCaseBot-GroupCleanup
+  --source-arn arn:aws:events:us-east-1:${ACCOUNT_ID}:rule/LarkCaseBot-GroupCleanup
 ```
 
 ### 6.4 Cross-Account EventBridge Configuration (Required for Multi-Account)
@@ -1395,3 +1401,5 @@ aws secretsmanager delete-secret --secret-id LarkCaseBot-app-secret --force-dele
 ```
 
 ---
+
+**Last Updated**: 2025-12-16
