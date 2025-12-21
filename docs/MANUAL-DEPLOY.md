@@ -269,60 +269,9 @@ larkcasebot-data-{account-id}/
 
 ## Step 3: 创建 IAM 角色
 
-### 3.1 创建 LarkCaseBot-SupportApiRole
+> 💡 **创建顺序说明**: 先创建 Lambda 执行角色（3.1-3.4），最后创建 SupportApiRole（3.5）。因为 SupportApiRole 的信任策略需要引用 Lambda 角色的 ARN。
 
-这是访问 AWS Support API 的角色。
-
-**信任策略 (trust-policy.json)：**
-
-> ⚠️ **重要**: 将 `LAMBDA_ACCOUNT_ID` 替换为部署 Lambda 的主账号 ID，将 `MSGEVENT_ROLE_NAME` 和 `CASEPOLLER_ROLE_NAME` 替换为实际的角色名称。
->
-> 如果使用 CDK 部署，角色名称类似：`LarkCaseBotStack-MsgEventHandlerServiceRole12345-ABCDEFG`
->
-> 可通过以下命令获取：
-> ```bash
-> aws cloudformation describe-stacks --stack-name LarkCaseBotStack \
->   --query 'Stacks[0].Outputs[?contains(OutputKey,`Role`)].{Key:OutputKey,Value:OutputValue}' --output table
-> ```
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": [
-          "arn:aws:iam::LAMBDA_ACCOUNT_ID:role/MSGEVENT_ROLE_NAME",
-          "arn:aws:iam::LAMBDA_ACCOUNT_ID:role/CASEPOLLER_ROLE_NAME"
-        ]
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-```
-
-> **跨账号说明**: 
-> - `LAMBDA_ACCOUNT_ID` 是部署 LarkCaseBot Lambda 的主账号 ID
-> - 必须使用**完整的角色 ARN**，不要使用通配符 `*`
-> - 如果不确定角色名称，可在主账号 IAM Console 查看 Lambda 函数的执行角色
-
-**CLI 方式：**
-
-```bash
-# 创建角色
-aws iam create-role \
-  --role-name LarkCaseBot-SupportApiRole \
-  --assume-role-policy-document file://trust-policy.json
-
-# 附加 AWSSupportAccess 策略
-aws iam attach-role-policy \
-  --role-name LarkCaseBot-SupportApiRole \
-  --policy-arn arn:aws:iam::aws:policy/AWSSupportAccess
-```
-
-### 3.2 创建 MsgEventRole
+### 3.1 创建 MsgEventRole
 
 **Console 方式：**
 
@@ -431,7 +380,7 @@ aws iam put-role-policy \
   --policy-document file://msg-event-policy.json
 ```
 
-### 3.3 创建 CaseUpdateRole
+### 3.2 创建 CaseUpdateRole
 
 **Console 方式：**
 
@@ -439,7 +388,10 @@ aws iam put-role-policy \
 2. Trusted entity type: **AWS service** → Use case: **Lambda**
 3. 添加权限：勾选 `AWSLambdaBasicExecutionRole`
 4. Role name: `LarkCaseBot-CaseUpdateRole`
-5. 创建后添加内联策略（将 `ACCOUNT_ID` 替换为你的账号 ID）：
+5. 创建后添加内联策略：
+   - 点击 **Add permissions** → **Create inline policy** → **JSON**
+   - 粘贴下方 JSON（将 `ACCOUNT_ID` 替换为你的账号 ID）
+   - Policy name: `CaseUpdatePolicy`
 
 ```json
 {
@@ -487,7 +439,7 @@ aws iam put-role-policy \
   --policy-document file://case-update-policy.json
 ```
 
-### 3.4 创建 CasePollerRole
+### 3.3 创建 CasePollerRole
 
 **Console 方式：**
 
@@ -495,7 +447,10 @@ aws iam put-role-policy \
 2. Trusted entity type: **AWS service** → Use case: **Lambda**
 3. 添加权限：勾选 `AWSLambdaBasicExecutionRole`
 4. Role name: `LarkCaseBot-CasePollerRole`
-5. 创建后添加内联策略（将 `ACCOUNT_ID` 替换为你的账号 ID）：
+5. 创建后添加内联策略：
+   - 点击 **Add permissions** → **Create inline policy** → **JSON**
+   - 粘贴下方 JSON（将 `ACCOUNT_ID` 替换为你的账号 ID）
+   - Policy name: `CasePollerPolicy`
 
 ```json
 {
@@ -543,7 +498,7 @@ aws iam put-role-policy \
   --policy-document file://case-poller-policy.json
 ```
 
-### 3.5 创建 GroupCleanupRole
+### 3.4 创建 GroupCleanupRole
 
 **Console 方式：**
 
@@ -551,7 +506,10 @@ aws iam put-role-policy \
 2. Trusted entity type: **AWS service** → Use case: **Lambda**
 3. 添加权限：勾选 `AWSLambdaBasicExecutionRole`
 4. Role name: `LarkCaseBot-GroupCleanupRole`
-5. 创建后添加内联策略（将 `ACCOUNT_ID` 替换为你的账号 ID）：
+5. 创建后添加内联策略：
+   - 点击 **Add permissions** → **Create inline policy** → **JSON**
+   - 粘贴下方 JSON（将 `ACCOUNT_ID` 替换为你的账号 ID）
+   - Policy name: `GroupCleanupPolicy`
 
 ```json
 {
@@ -595,6 +553,90 @@ aws iam put-role-policy \
   --policy-document file://group-cleanup-policy.json
 ```
 
+### 3.5 创建 LarkCaseBot-SupportApiRole
+
+这是访问 AWS Support API 的角色。必须在 Lambda 执行角色创建完成后再创建此角色。
+
+> ⚠️ **注意**: 此角色**不是** Lambda 执行角色，而是被 Lambda 执行角色 AssumeRole 调用的角色。信任策略需要信任 IAM 角色（不是 Lambda 服务）。
+
+**Console 方式：**
+
+1. 进入 AWS Console → IAM → Roles → **Create role**
+2. Step 1 - Select trusted entity：
+   - Trusted entity type: **Custom trust policy**
+   - 粘贴下方信任策略 JSON（将 `ACCOUNT_ID` 替换为你的账号 ID）
+   - 点击 **Next**
+3. Step 2 - Add permissions：
+   - 搜索并勾选 `AWSSupportAccess`
+   - 点击 **Next**
+4. Step 3 - Name, review, and create：
+   - Role name: `LarkCaseBot-SupportApiRole`
+   - 点击 **Create role**
+
+**信任策略 (Custom trust policy)：**
+
+> 将 `ACCOUNT_ID` 替换为部署 Lambda 的主账号 ID。
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::ACCOUNT_ID:role/LarkCaseBot-MsgEventRole",
+          "arn:aws:iam::ACCOUNT_ID:role/LarkCaseBot-CasePollerRole"
+        ]
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+> **跨账号说明**: 
+> - `ACCOUNT_ID` 是部署 LarkCaseBot Lambda 的主账号 ID
+> - 必须使用**完整的角色 ARN**，不要使用通配符 `*`
+
+**CLI 方式：**
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+# 创建信任策略文件
+cat > /tmp/trust-policy.json <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::${ACCOUNT_ID}:role/LarkCaseBot-MsgEventRole",
+          "arn:aws:iam::${ACCOUNT_ID}:role/LarkCaseBot-CasePollerRole"
+        ]
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+
+# 创建角色
+aws iam create-role \
+  --role-name LarkCaseBot-SupportApiRole \
+  --assume-role-policy-document file:///tmp/trust-policy.json
+
+# 附加 AWSSupportAccess 策略
+aws iam attach-role-policy \
+  --role-name LarkCaseBot-SupportApiRole \
+  --policy-arn arn:aws:iam::aws:policy/AWSSupportAccess
+
+# 清理
+rm /tmp/trust-policy.json
+```
+
 ---
 
 ## Step 4: 创建 Lambda 函数
@@ -605,7 +647,7 @@ aws iam put-role-policy \
 |--------|---------|---------|------|------|--------|
 | MsgEvent | `msg_event_handler.lambda_handler` | MsgEventRole | 60s | 1024MB | API Gateway |
 | CaseUpdate | `case_update_handler.lambda_handler` | CaseUpdateRole | 30s | 256MB | EventBridge (aws.support) |
-| CasePoller | `case_poller.lambda_handler` | CasePollerRole | 300s | 512MB | EventBridge (每 10 分钟) |
+| CasePoller | `case_poller.lambda_handler` | CasePollerRole | 300s | 512MB | EventBridge (每 5 分钟) |
 | GroupCleanup | `group_cleanup.lambda_handler` | GroupCleanupRole | 300s | 256MB | EventBridge (每小时) |
 
 ### 4.1 准备代码包
@@ -639,7 +681,7 @@ cd ..
 | APP_SECRET_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret-XXXXX` | Lark App Secret |
 | ENCRYPT_KEY_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-encrypt-key-XXXXX` | Lark Encrypt Key（可选） |
 | VERIFICATION_TOKEN_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-verification-token-XXXXX` | Lark Verification Token |
-| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶 |
+| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶（仅桶名，非 ARN） |
 | CFG_KEY | `LarkBotProfile-0` | 配置键名 |
 | CASE_LANGUAGE | `zh` | 工单语言 (zh/en/ja/ko) |
 | USER_WHITELIST | `false` | 是否启用用户白名单 |
@@ -647,6 +689,7 @@ cd ..
 > ⚠️ **注意**: 
 > - 将 `ACCOUNT_ID` 替换为你的实际 AWS 账号 ID
 > - Secret ARN 末尾的 `-XXXXX` 是自动生成的，需要从 Secrets Manager 复制完整 ARN
+> - `DATA_BUCKET` 只需要桶名（如 `larkcasebot-data-123456789012`），不是完整 ARN
 
 **Console 方式：**
 
@@ -725,7 +768,7 @@ aws lambda create-function \
 |-----|-------|------|
 | APP_ID_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-id-XXXXX` | Lark App ID |
 | APP_SECRET_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret-XXXXX` | Lark App Secret |
-| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶 |
+| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶（仅桶名，非 ARN） |
 | AUTO_DISSOLVE_HOURS | `72` | 工单解决后自动解散群的小时数 |
 
 **CLI 方式：**
@@ -763,7 +806,7 @@ aws lambda create-function \
 | 执行角色 | `LarkCaseBot-CasePollerRole` |
 | 超时 | 300 秒（5 分钟） |
 | 内存 | 512 MB |
-| 触发器 | EventBridge 规则 `LarkCaseBot-Poller`（每 10 分钟） |
+| 触发器 | EventBridge 规则 `LarkCaseBot-Poller`（每 5 分钟） |
 
 **环境变量：**
 
@@ -771,7 +814,7 @@ aws lambda create-function \
 |-----|-------|------|
 | APP_ID_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-id-XXXXX` | Lark App ID |
 | APP_SECRET_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret-XXXXX` | Lark App Secret |
-| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶 |
+| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶（仅桶名，非 ARN） |
 | AUTO_DISSOLVE_HOURS | `72` | 工单解决后自动解散群的小时数 |
 
 **CLI 方式：**
@@ -817,7 +860,7 @@ aws lambda create-function \
 |-----|-------|------|
 | APP_ID_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-id-XXXXX` | Lark App ID |
 | APP_SECRET_ARN | `arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:LarkCaseBot-app-secret-XXXXX` | Lark App Secret |
-| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶 |
+| DATA_BUCKET | `larkcasebot-data-ACCOUNT_ID` | S3 数据桶（仅桶名，非 ARN） |
 | AUTO_DISSOLVE_HOURS | `72` | 工单解决后自动解散群的小时数 |
 
 **CLI 方式：**
@@ -852,13 +895,15 @@ aws lambda create-function \
 | `APP_SECRET_ARN` | Lark App Secret 的 Secrets Manager ARN | 全部 |
 | `ENCRYPT_KEY_ARN` | Lark Encrypt Key 的 Secrets Manager ARN（可选） | MsgEvent |
 | `VERIFICATION_TOKEN_ARN` | Lark Verification Token 的 Secrets Manager ARN | MsgEvent |
-| `DATA_BUCKET` | S3 数据桶名称 | 全部 |
+| `DATA_BUCKET` | S3 数据桶名称（仅桶名，非 ARN） | 全部 |
 | `CFG_KEY` | S3 配置键名 | MsgEvent |
 | `CASE_LANGUAGE` | 工单语言 (zh/en/ja/ko) | MsgEvent |
 | `USER_WHITELIST` | 是否启用用户白名单 | MsgEvent |
 | `AUTO_DISSOLVE_HOURS` | 工单解决后自动解散群的小时数 | CaseUpdate, CasePoller, GroupCleanup |
 
-> 💡 **提示**: 将 `AUTO_DISSOLVE_HOURS` 设为你需要的小时数，例如 48 表示工单解决后 48 小时自动解散群。
+> 💡 **提示**: 
+> - 将 `AUTO_DISSOLVE_HOURS` 设为你需要的小时数，例如 48 表示工单解决后 48 小时自动解散群。
+> - `DATA_BUCKET` 只需要桶名（如 `larkcasebot-data-123456789012`），不是完整 ARN。
 
 ---
 
@@ -964,40 +1009,40 @@ echo "Webhook URL: https://$API_ID.execute-api.us-east-1.amazonaws.com/prod/mess
 
 **Console 方式：**
 
-1. 进入 AWS Console → EventBridge → Rules（确保在 **us-east-1** 区域）
+1. 进入 AWS Console → Amazon EventBridge → Rules（确保在 **us-east-1** 区域）
 2. 确保 Event bus 选择 **default**
-3. 点击 **Create rule**
-4. Step 1 - Define rule detail：
-   - Name: `LarkCaseBot-CaseUpdate`
-   - Description: `Capture AWS Support case updates and push to Lark`
-   - Event bus: **default**
-   - Rule type: **Rule with an event pattern**
-   - 点击 **Next**
-5. Step 2 - Build event pattern：
-   - Event source: **AWS events or EventBridge partner events**
-   - Creation method: **Custom pattern (JSON editor)**
-   - Event pattern:
+3. 在页面上配置以下内容：
 
-```json
-{
-  "source": ["aws.support"],
-  "detail-type": ["Support Case Update"]
-}
-```
+   **Event pattern 部分：**
+   - 选择 **Custom pattern (JSON editor)**
+   - 输入以下 pattern：
+   ```json
+   {
+     "source": ["aws.support"],
+     "detail-type": ["Support Case Update"]
+   }
+   ```
 
-   - 点击 **Next**
-6. Step 3 - Select target(s)：
+   **Target 部分：**
    - Target types: **AWS service**
    - Select a target: **Lambda function**
    - Function: `LarkCaseBot-CaseUpdate`
-   - ⚠️ 如果提示 **"Add permission to Lambda function"**，点击 **Allow** 或 **Add**
-   - 点击 **Next**
-7. Step 4 - Configure tags：（可选，跳过）
-   - 点击 **Next**
-8. Step 5 - Review and create：
-   - 确认配置无误，点击 **Create rule**
 
-> 💡 **关于 Lambda 触发器权限**: Console 创建 EventBridge 规则时会自动提示添加 Lambda resource-based policy。如果使用 CLI，必须手动运行 `aws lambda add-permission` 命令。
+   **Permissions 部分：**
+   - 选择 **Use execution role (recommended)**
+
+4. 点击 **Create** 按钮，弹出 Configuration 对话框
+5. 在对话框中填写：
+   - **Rule name**: `LarkCaseBot-CaseUpdate`
+   - **Description**: `Capture AWS Support case updates and push to Lark`（可选）
+   - **Event bus name**: 保持 `default`
+   - **Activation**: 保持 **Active** 勾选
+6. 点击 **Create** 确认创建
+
+> 💡 **注意**: 旧版 Console 使用多步骤向导（先填 Rule name），新版使用单页表单（最后填 Rule name）。
+
+```json
+> 💡 **注意**: 旧版 Console 使用多步骤向导（先填 Rule name），新版使用单页表单（最后填 Rule name）。
 
 **CLI 方式：**
 
@@ -1023,38 +1068,35 @@ aws lambda add-permission \
 
 ### 6.2 定时轮询规则
 
-> 💡 **注意**: 创建规则时，AWS Console 可能会提示使用 "Scheduler" 构建器。可以忽略此提示 - 带 schedule 表达式的 EventBridge Rules 仍然有效，CDK 部署的也是这种方式。
-
 **Console 方式：**
 
-1. 进入 AWS Console → EventBridge → Rules
-2. 点击 **Create rule**
-3. Step 1 - Define rule detail：
-   - Name: `LarkCaseBot-Poller`
-   - Description: `Poll AWS Support case status every 10 minutes`
-   - Event bus: **default**
-   - Rule type: **Schedule**
-   - 如果提示使用 Scheduler，点击 **Continue to create rule** 继续使用 Rules
+1. 进入 AWS Console → Amazon EventBridge → Rules（确保在 **us-east-1** 区域）
+2. 在页面顶部提示区域，点击 **scheduled rule builder** 链接
+3. **Step 1 - Define rule detail**：
+   - **Name**: `LarkCaseBot-Poller`
+   - **Description**: `Poll AWS Support case status every 5 minutes`（可选）
+   - **Event bus**: 保持 `default`
+   - 勾选 **Enable the rule on the selected event bus**
    - 点击 **Next**
-4. Step 2 - Define schedule：
-   - Schedule pattern: **A schedule that runs at a regular rate**
-   - Rate expression: `10` **minutes**
+4. **Step 2 - Define schedule**：
+   - 选择 **A schedule that runs at a regular rate, such as every 10 minutes**
+   - Rate expression: `5` **minutes**
    - 点击 **Next**
-5. Step 3 - Select target(s)：
+5. **Step 3 - Select target(s)**：
    - Target types: **AWS service**
    - Select a target: **Lambda function**
    - Function: `LarkCaseBot-CasePoller`
-   - ⚠️ 如果提示添加权限，点击 **Allow**
    - 点击 **Next**
-6. 完成创建
+6. **Step 4 - Configure tags**：跳过，点击 **Next**
+7. **Step 5 - Review and create**：检查配置，点击 **Create rule**
 
 **CLI 方式：**
 
 ```bash
-# 创建规则（每 10 分钟，与 CDK 默认值一致）
+# 创建规则（每 5 分钟）
 aws events put-rule \
   --name LarkCaseBot-Poller \
-  --schedule-expression "rate(10 minutes)" \
+  --schedule-expression "rate(5 minutes)" \
   --region us-east-1
 
 # 添加目标
@@ -1077,26 +1119,25 @@ aws lambda add-permission \
 
 **Console 方式：**
 
-1. 进入 AWS Console → EventBridge → Rules
-2. 点击 **Create rule**
-3. Step 1 - Define rule detail：
-   - Name: `LarkCaseBot-GroupCleanup`
-   - Description: `Auto-dissolve resolved case groups every hour`
-   - Event bus: **default**
-   - Rule type: **Schedule**
-   - 如果提示使用 Scheduler，点击 **Continue to create rule**
+1. 进入 AWS Console → Amazon EventBridge → Rules（确保在 **us-east-1** 区域）
+2. 在页面顶部提示区域，点击 **scheduled rule builder** 链接
+3. **Step 1 - Define rule detail**：
+   - **Name**: `LarkCaseBot-GroupCleanup`
+   - **Description**: `Auto-dissolve resolved case groups every hour`（可选）
+   - **Event bus**: 保持 `default`
+   - 勾选 **Enable the rule on the selected event bus**
    - 点击 **Next**
-4. Step 2 - Define schedule：
-   - Schedule pattern: **A schedule that runs at a regular rate**
-   - Rate expression: `1` **hour**
+4. **Step 2 - Define schedule**：
+   - 选择 **A schedule that runs at a regular rate, such as every 10 minutes**
+   - Rate expression: `1` **hours**
    - 点击 **Next**
-5. Step 3 - Select target(s)：
+5. **Step 3 - Select target(s)**：
    - Target types: **AWS service**
    - Select a target: **Lambda function**
    - Function: `LarkCaseBot-GroupCleanup`
-   - ⚠️ 如果提示添加权限，点击 **Allow**
    - 点击 **Next**
-6. 完成创建
+6. **Step 4 - Configure tags**：跳过，点击 **Next**
+7. **Step 5 - Review and create**：检查配置，点击 **Create rule**
 
 **CLI 方式：**
 
@@ -1123,75 +1164,197 @@ aws lambda add-permission \
   --source-arn arn:aws:events:us-east-1:${ACCOUNT_ID}:rule/LarkCaseBot-GroupCleanup
 ```
 
-### 6.4 跨账户 EventBridge 配置（多账户必需）
+---
 
-> ⚠️ **重要**: 如果需要支持多个 AWS 账户，必须配置跨账户 EventBridge 转发，否则其他账户的工单更新不会推送到 Lark。
+### 多账户配置说明
 
-#### 6.4.1 在主账户创建自定义 Event Bus
+> 📋 **适用场景**：
+> | 部署场景 | 6.4 Support API 角色 | 6.5 跨账户 EventBridge |
+> |---------|---------------------|----------------------|
+> | 单账户部署 | ❌ 跳过 | ❌ 跳过 |
+> | 多账户部署 | ✅ **必需** - 否则无法管理其他账户工单 | ⚡ **可选** - 启用实时推送（不配置则每 5 分钟轮询） |
+>
+> 💡 **单账户用户**：直接跳到 [Step 7: 初始化配置](#step-7-初始化配置)
+
+---
+
+### 6.4 在其他账户创建 Support API 角色（多账户必需）
+
+> ⚠️ **多账户必需**: 此角色允许主账户的 Lambda 调用其他账户的 Support API，用于创建和管理工单。
+>
+> 💡 **提示**: 此角色的 ARN 将在 [Step 7.1 S3 配置](#71-初始化-s3-配置) 中使用。
+
+在**每个需要支持的其他账户**中执行以下步骤：
+
+**Console 方式：**
+
+1. 登录到**其他账号**的 AWS Console
+2. 进入 IAM → Roles → **Create role**
+3. Step 1 - Select trusted entity:
+   - Trusted entity type: **Custom trust policy**
+   - 粘贴以下信任策略（将 `MAIN_ACCOUNT_ID` 替换为主账号 ID）：
+     ```json
+     {
+       "Version": "2012-10-17",
+       "Statement": [
+         {
+           "Effect": "Allow",
+           "Principal": {
+             "AWS": [
+               "arn:aws:iam::MAIN_ACCOUNT_ID:role/LarkCaseBot-MsgEventRole",
+               "arn:aws:iam::MAIN_ACCOUNT_ID:role/LarkCaseBot-CasePollerRole"
+             ]
+           },
+           "Action": "sts:AssumeRole"
+         }
+       ]
+     }
+     ```
+   - 点击 **Next**
+4. Step 2 - Add permissions:
+   - 搜索并选择 `AWSSupportAccess`
+   - 点击 **Next**
+5. Step 3 - Name, review, and create:
+   - Role name: `LarkCaseBot-SupportApiRole`
+   - Description: `Lark bot cross-account support access`
+   - 点击 **Create role**
+
+**CLI 方式：**
 
 ```bash
 # 设置变量
-MAIN_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+MAIN_ACCOUNT_ID="111122223333"  # 替换为主账号 ID
 
-# 创建自定义 Event Bus
-aws events create-event-bus \
-  --name LarkCaseBot-case-event-bus \
-  --region us-east-1
+# 创建信任策略
+cat > /tmp/support-trust.json <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::${MAIN_ACCOUNT_ID}:role/LarkCaseBot-MsgEventRole",
+          "arn:aws:iam::${MAIN_ACCOUNT_ID}:role/LarkCaseBot-CasePollerRole"
+        ]
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
 
-# 允许其他账户发送事件到此 Bus
-# 💡 --principal "*" 允许任意账户发送事件。如需更严格控制，可改为具体账户 ID，如 --principal "111122223333"
-# 或使用 put-permission 多次添加多个账户
-aws events put-permission \
-  --event-bus-name LarkCaseBot-case-event-bus \
-  --action events:PutEvents \
-  --principal "*" \
-  --statement-id AllowCrossAccountPutEvents \
-  --region us-east-1
+# 创建角色
+aws iam create-role \
+  --role-name LarkCaseBot-SupportApiRole \
+  --assume-role-policy-document file:///tmp/support-trust.json \
+  --description "Lark bot cross-account support access"
+
+# 附加 AWSSupportAccess 策略
+aws iam attach-role-policy \
+  --role-name LarkCaseBot-SupportApiRole \
+  --policy-arn arn:aws:iam::aws:policy/AWSSupportAccess
+
+# 清理
+rm /tmp/support-trust.json
+
+echo "✅ Support API 角色创建完成"
 ```
 
-#### 6.4.2 创建主账户 Event Bus 规则
+---
 
-```bash
-# 在自定义 Event Bus 上创建规则，转发到 CaseUpdate Lambda
-aws events put-rule \
-  --name LarkCaseBot-CrossAccountCaseUpdate \
-  --event-bus-name LarkCaseBot-case-event-bus \
-  --event-pattern '{"source":["aws.support"],"detail-type":["Support Case Update"]}' \
-  --region us-east-1
+### 6.5 跨账户 EventBridge 配置（多账户可选）
 
-# 添加 Lambda 目标
-aws events put-targets \
-  --rule LarkCaseBot-CrossAccountCaseUpdate \
-  --event-bus-name LarkCaseBot-case-event-bus \
-  --targets "Id"="1","Arn"="arn:aws:lambda:us-east-1:${MAIN_ACCOUNT_ID}:function:LarkCaseBot-CaseUpdate" \
-  --region us-east-1
+> ⚡ **多账户可选**: 配置跨账户 EventBridge 转发，使其他账户的工单更新能**实时**推送到 Lark。
+>
+> 💡 **不配置的影响**: CasePoller 仍会每 5 分钟轮询所有账户的工单更新，功能正常但有延迟。
 
-# 添加 Lambda 权限
-aws lambda add-permission \
-  --function-name LarkCaseBot-CaseUpdate \
-  --statement-id eventbridge-crossaccount \
-  --action lambda:InvokeFunction \
-  --principal events.amazonaws.com \
-  --source-arn "arn:aws:events:us-east-1:${MAIN_ACCOUNT_ID}:rule/LarkCaseBot-case-event-bus/LarkCaseBot-CrossAccountCaseUpdate"
-```
+#### 6.5.1 在其他账户配置事件转发
 
-#### 6.4.3 在其他账户配置事件转发
+> 在**每个需要支持的其他账户**中执行以下步骤：
+>
+> ⚠️ **重要**: 必须在 **us-east-1** 区域操作！AWS Support 事件仅在 us-east-1 生成。
 
-> 在**每个需要支持的其他账户**中执行以下命令：
+**Console 方式：**
+
+**Step A: 创建 IAM 角色**
+
+1. 进入 AWS Console → IAM → Roles → **Create role**
+2. Step 1 - Select trusted entity:
+   - Trusted entity type: **Custom trust policy**
+   - 粘贴以下信任策略：
+     ```json
+     {
+       "Version": "2012-10-17",
+       "Statement": [
+         {
+           "Effect": "Allow",
+           "Principal": {"Service": "events.amazonaws.com"},
+           "Action": "sts:AssumeRole"
+         }
+       ]
+     }
+     ```
+   - 点击 **Next**
+3. Step 2 - Add permissions: 点击 **Next**（稍后添加内联策略）
+4. Step 3 - Name, review, and create:
+   - Role name: `LarkCaseBot-EventBridgeRole`
+   - 点击 **Create role**
+5. 找到刚创建的角色，点击进入
+6. 在 Permissions 标签页，点击 **Add permissions** → **Create inline policy**
+7. 选择 **JSON** 标签，粘贴（将 `MAIN_ACCOUNT_ID` 替换为主账户 ID）：
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": "events:PutEvents",
+         "Resource": "arn:aws:events:us-east-1:MAIN_ACCOUNT_ID:event-bus/default"
+       }
+     ]
+   }
+   ```
+8. 点击 **Next**
+9. Policy name: `ForwardToMainAccount`
+10. 点击 **Create policy**
+
+**Step B: 创建 EventBridge 规则**
+
+1. 进入 Amazon EventBridge → Rules
+2. 确保 Event bus 选择 `default`
+3. 点击 **Create rule**
+4. 在主页面配置：
+
+   **Event pattern 部分：**
+   - Event source: **AWS events or EventBridge partner events**
+   - Creation method: **Use pattern form**
+   - Event source: **AWS services**
+   - AWS service: **Support**
+   - Event type: **Support Case Update**
+
+   **Target 部分：**
+   - Target type: **EventBridge event bus**
+   - Target: **Event bus in a different account or Region**
+   - Event bus as target: `arn:aws:events:us-east-1:MAIN_ACCOUNT_ID:event-bus/default`（替换 MAIN_ACCOUNT_ID）
+   - Execution role: **Use existing role** → `LarkCaseBot-EventBridgeRole`
+
+5. 点击 **Create** 按钮，弹出 Configuration 对话框
+6. 在对话框中填写：
+   - **Rule name**: `LarkCaseBot-ForwardSupportEvents`
+   - **Description**: `Forward Support case updates to main account`（可选）
+   - **Event bus name**: 保持 `default`
+   - **Activation**: 保持 **Active** 勾选
+7. 点击 **Create** 确认创建
+
+**CLI 方式：**
 
 ```bash
 # 设置变量（替换为实际值）
 MAIN_ACCOUNT_ID="111122223333"  # 主账户 ID
 THIS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-# 1. 创建 EventBridge 转发规则
-aws events put-rule \
-  --name LarkCaseBot-ForwardSupportEvents \
-  --event-pattern '{"source":["aws.support"],"detail-type":["Support Case Update"]}' \
-  --state ENABLED \
-  --region us-east-1
-
-# 2. 创建 EventBridge IAM 角色
+# 1. 创建 EventBridge IAM 角色
 cat > /tmp/eventbridge-trust.json <<EOF
 {
   "Version": "2012-10-17",
@@ -1209,7 +1372,7 @@ aws iam create-role \
   --role-name LarkCaseBot-EventBridgeRole \
   --assume-role-policy-document file:///tmp/eventbridge-trust.json
 
-# 3. 添加转发权限策略
+# 2. 添加转发权限策略
 cat > /tmp/eventbridge-policy.json <<EOF
 {
   "Version": "2012-10-17",
@@ -1217,7 +1380,7 @@ cat > /tmp/eventbridge-policy.json <<EOF
     {
       "Effect": "Allow",
       "Action": "events:PutEvents",
-      "Resource": "arn:aws:events:us-east-1:${MAIN_ACCOUNT_ID}:event-bus/LarkCaseBot-case-event-bus"
+      "Resource": "arn:aws:events:us-east-1:${MAIN_ACCOUNT_ID}:event-bus/default"
     }
   ]
 }
@@ -1228,15 +1391,22 @@ aws iam put-role-policy \
   --policy-name ForwardToMainAccount \
   --policy-document file:///tmp/eventbridge-policy.json
 
-# 4. 等待角色生效
+# 3. 等待角色生效
 sleep 10
+
+# 4. 创建 EventBridge 转发规则
+aws events put-rule \
+  --name LarkCaseBot-ForwardSupportEvents \
+  --event-pattern '{"source":["aws.support"],"detail-type":["Support Case Update"]}' \
+  --state ENABLED \
+  --region us-east-1
 
 # 5. 添加转发目标
 aws events put-targets \
   --rule LarkCaseBot-ForwardSupportEvents \
   --targets "[{
     \"Id\": \"1\",
-    \"Arn\": \"arn:aws:events:us-east-1:${MAIN_ACCOUNT_ID}:event-bus/LarkCaseBot-case-event-bus\",
+    \"Arn\": \"arn:aws:events:us-east-1:${MAIN_ACCOUNT_ID}:event-bus/default\",
     \"RoleArn\": \"arn:aws:iam::${THIS_ACCOUNT_ID}:role/LarkCaseBot-EventBridgeRole\"
   }]" \
   --region us-east-1
@@ -1247,7 +1417,67 @@ rm /tmp/eventbridge-trust.json /tmp/eventbridge-policy.json
 echo "✅ EventBridge 转发配置完成"
 ```
 
-#### 6.4.4 验证跨账户配置
+#### 6.5.2 在主账户配置 default Event Bus 权限
+
+> ⚠️ **注意**: 此步骤需要在其他账户创建 `LarkCaseBot-EventBridgeRole` 角色（6.5.1 Step A）**之后**执行，因为策略中引用的角色必须已存在。
+
+**Console 方式：**
+
+1. 进入 AWS Console → Amazon EventBridge → Event buses
+2. 点击 **default** event bus
+3. 点击 **Permissions** 标签页
+4. 在 Resource-based policy 部分，点击 **Manage permissions**
+5. 在 Edit event bus 页面的 **Resource-based policy** 文本框中，粘贴以下策略（将 `OTHER_ACCOUNT_ID` 和 `MAIN_ACCOUNT_ID` 替换为实际账户 ID）：
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Sid": "AllowCrossAccountPutEvents",
+         "Effect": "Allow",
+         "Principal": {
+           "AWS": [
+             "arn:aws:iam::OTHER_ACCOUNT_ID:role/LarkCaseBot-EventBridgeRole"
+           ]
+         },
+         "Action": "events:PutEvents",
+         "Resource": "arn:aws:events:us-east-1:MAIN_ACCOUNT_ID:event-bus/default"
+       }
+     ]
+   }
+   ```
+   > 💡 多个账户时，在 Principal.AWS 数组中添加多个角色 ARN。
+6. 点击 **Update**
+
+**CLI 方式：**
+
+```bash
+# 设置变量
+MAIN_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+OTHER_ACCOUNT_ID="111122223333"  # 替换为其他账户 ID
+
+# 允许其他账户的 EventBridge 角色发送事件到 default bus
+aws events put-permission \
+  --event-bus-name default \
+  --action events:PutEvents \
+  --principal "arn:aws:iam::${OTHER_ACCOUNT_ID}:role/LarkCaseBot-EventBridgeRole" \
+  --statement-id "AllowAccount${OTHER_ACCOUNT_ID}" \
+  --region us-east-1
+```
+
+> 💡 如需添加多个账户，重复执行 `put-permission` 命令，每次使用不同的 `statement-id`。
+
+#### 6.5.3 验证跨账户配置
+
+**Console 方式：**
+
+1. 在其他账户：
+   - EventBridge → Rules → 确认 `LarkCaseBot-ForwardSupportEvents` 状态为 Enabled
+   - 点击规则查看 Targets，确认目标是主账户的 default Event Bus
+2. 在主账户：
+   - EventBridge → Rules（default bus）→ 确认 `LarkCaseBot-CaseUpdate` 存在且目标是 Lambda
+
+**CLI 方式：**
 
 ```bash
 # 在其他账户检查规则
@@ -1270,6 +1500,8 @@ aws iam get-role --role-name LarkCaseBot-EventBridgeRole
 
 ### 7.1 初始化 S3 配置
 
+> 💡 **多账户用户**: 如需支持多个账户，请先完成 [6.4 创建 Support API 角色](#64-在其他账户创建-support-api-角色多账户必需)，然后在下方配置中添加其他账户的 `role_arn`。
+
 在 S3 存储桶中创建配置文件 `config/LarkBotProfile-0.json`：
 
 ```json
@@ -1281,8 +1513,7 @@ aws iam get-role --role-name LarkCaseBot-EventBridgeRole
       "account_name": "主账号"
     }
   },
-  "user_whitelist": {},
-  "help_text": "发送 '开工单' 创建新工单\n发送 '历史' 查看工单历史"
+  "user_whitelist": {}
 }
 ```
 
@@ -1302,8 +1533,7 @@ cat > /tmp/config.json <<EOF
       "account_name": "主账号"
     }
   },
-  "user_whitelist": {},
-  "help_text": "发送 '开工单' 创建新工单\n发送 '历史' 查看工单历史"
+  "user_whitelist": {}
 }
 EOF
 
@@ -1401,3 +1631,5 @@ aws secretsmanager delete-secret --secret-id LarkCaseBot-app-secret --force-dele
 ```
 
 ---
+
+**最后更新**: 2025-12-16
