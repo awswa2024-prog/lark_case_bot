@@ -284,7 +284,10 @@ python setup_lark_bot.py verify --all
 **Verify / 验证**:
 ```bash
 # Check Lambda logs / 检查 Lambda 日志
+# CDK deployment:
 aws logs tail /aws/lambda/LarkCaseBotStack-CaseUpdateLambda* --follow
+# Manual deployment:
+aws logs tail /aws/lambda/LarkCaseBot-CaseUpdateLambda --follow
 
 # Look for / 查找:
 # "Processing event: event_type=ResolveCase"
@@ -469,11 +472,18 @@ python -c "from lambda.msg_event_handler import lambda_handler; \
 
 ### Debug Logging / 调试日志
 
+> **Note**: Lambda function names differ between deployment methods:
+> - **CDK**: `LarkCaseBotStack-MsgEventLambda*`, `LarkCaseBotStack-CaseUpdateLambda*`, etc.
+> - **Manual**: `LarkCaseBot-MsgEventLambda`, `LarkCaseBot-CaseUpdateLambda`, etc.
+
 ```bash
-# View Lambda logs
+# View Lambda logs (CDK deployment)
 aws logs tail /aws/lambda/LarkCaseBotStack-MsgEventLambda* --follow
 
-# Filter errors
+# View Lambda logs (Manual deployment)
+aws logs tail /aws/lambda/LarkCaseBot-MsgEventLambda --follow
+
+# Filter errors (adjust log group name based on deployment type)
 aws logs filter-pattern "ERROR" \
   --log-group-name /aws/lambda/LarkCaseBotStack-MsgEventLambda*
 ```
@@ -563,11 +573,18 @@ lambda/
 ### Disaster Recovery / 灾难恢复
 
 ```bash
-# Export S3 data
-aws s3 sync s3://larkcasebotstack-databucket-xxx ./backup/
+# Get bucket name / 获取存储桶名称
+# CDK deployment:
+BUCKET=$(aws cloudformation describe-stacks --stack-name LarkCaseBotStack \
+  --query 'Stacks[0].Outputs[?OutputKey==`DataBucketName`].OutputValue' --output text)
+# Manual deployment:
+BUCKET="larkcasebot-data-$(aws sts get-caller-identity --query Account --output text)"
 
-# Restore if needed
-aws s3 sync ./backup/ s3://larkcasebotstack-databucket-xxx
+# Export S3 data / 导出 S3 数据
+aws s3 sync s3://${BUCKET} ./backup/
+
+# Restore if needed / 需要时恢复
+aws s3 sync ./backup/ s3://${BUCKET}
 ```
 
 ---
