@@ -364,7 +364,7 @@ def format_case_update(event_detail: Dict[str, Any], case_info: Dict[str, Any]) 
                 icon = "👤"
             
             # Limit message length to avoid being too long
-            max_body_length = 2000
+            max_body_length = 8000
             if len(body) > max_body_length:
                 body_preview = body[:max_body_length] + "\n\n... (Content truncated, click Case ID to view full content)"
             else:
@@ -402,6 +402,11 @@ def format_case_update(event_detail: Dict[str, Any], case_info: Dict[str, Any]) 
             return None
     
     elif event_type == 'ResolveCase':
+        # Skip if already resolved (dedup multiple EventBridge events)
+        if case_info.get('status') == 'resolved':
+            print(f"Case {case_id} already resolved, skipping duplicate ResolveCase event")
+            return None
+        
         # Case resolved - record resolved time for auto-dissolve
         resolved_at = datetime.now(timezone.utc).isoformat()
         update_case(case_id, {
@@ -424,7 +429,12 @@ def format_case_update(event_detail: Dict[str, Any], case_info: Dict[str, Any]) 
         return ("✅ Case Resolved", content)
     
     elif event_type == 'ReopenCase':
-        # Case reopened
+        # Case reopened - update status in S3
+        update_case(case_id, {
+            'status': 'reopened',
+            'resolved_at': None  # Clear resolved time
+        })
+        
         time_str = get_dual_timezone_time()
         content = [
             [{"tag": "a", "text": f"Case ID: {display_id}", "href": support_url, "style": ["bold"]}],
@@ -483,14 +493,25 @@ def lambda_handler(event, context):
             return {'statusCode': 200, 'body': 'Event ignored'}
         
         # Extract messages and latest_time from result
-        # Result format: (messages, latest_communication_time) or just messages for non-communication events
+        # Result format: 
+        # - For communication events: (messages, latest_communication_time) where messages is tuple or list of tuples
+        # - For other events: (title, content) tuple directly
         latest_communication_time = None
         
         if isinstance(result, tuple) and len(result) == 2:
-            # Communication event with timestamp
-            messages, latest_communication_time = result
+            first, second = result
+            # Check if second element is a timestamp string (communication event)
+            # vs a list (content for single message)
+            if isinstance(second, str) and not isinstance(first, str):
+                # Communication event: (messages, timestamp)
+                messages, latest_communication_time = result
+            elif isinstance(second, list):
+                # Single message: (title, content)
+                messages = result
+            else:
+                messages = result
         else:
-            # Other event types without timestamp
+            # Other event types
             messages = result
         
         # Handle single message or multiple messages
