@@ -1166,7 +1166,8 @@ Execute the following steps in **each other account that needs support**:
            "Principal": {
              "AWS": [
                "arn:aws:iam::MAIN_ACCOUNT_ID:role/LarkCaseBot-MsgEventRole",
-               "arn:aws:iam::MAIN_ACCOUNT_ID:role/LarkCaseBot-CasePollerRole"
+               "arn:aws:iam::MAIN_ACCOUNT_ID:role/LarkCaseBot-CasePollerRole",
+               "arn:aws:iam::MAIN_ACCOUNT_ID:role/LarkCaseBot-CaseUpdateRole"
              ]
            },
            "Action": "sts:AssumeRole"
@@ -1199,7 +1200,8 @@ cat > /tmp/support-trust.json <<EOF
       "Principal": {
         "AWS": [
           "arn:aws:iam::${MAIN_ACCOUNT_ID}:role/LarkCaseBot-MsgEventRole",
-          "arn:aws:iam::${MAIN_ACCOUNT_ID}:role/LarkCaseBot-CasePollerRole"
+          "arn:aws:iam::${MAIN_ACCOUNT_ID}:role/LarkCaseBot-CasePollerRole",
+          "arn:aws:iam::${MAIN_ACCOUNT_ID}:role/LarkCaseBot-CaseUpdateRole"
         ]
       },
       "Action": "sts:AssumeRole"
