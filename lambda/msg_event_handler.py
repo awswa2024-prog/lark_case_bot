@@ -84,6 +84,7 @@ _encrypt_key = None
 _verification_token = None
 _bot_config = None
 _tenant_access_token = None
+_bot_open_id = None
 
 # Event deduplication cache (in-memory for Lambda warm starts)
 _processed_events = {}
@@ -377,6 +378,29 @@ def get_tenant_access_token():
         return _tenant_access_token
     else:
         raise Exception(f"Failed to get tenant access token: {result}")
+
+
+def get_bot_open_id() -> str:
+    """Get bot's open_id from Lark API"""
+    global _bot_open_id
+    
+    if _bot_open_id is not None:
+        return _bot_open_id
+    
+    token = get_tenant_access_token()
+    url = "https://open.larksuite.com/open-apis/bot/v3/info"
+    response = http.request(
+        'GET', url,
+        headers={'Authorization': f'Bearer {token}'}
+    )
+    result = json.loads(response.data.decode('utf-8'))
+    
+    if result.get('code') == 0:
+        _bot_open_id = result.get('bot', {}).get('open_id', '')
+        return _bot_open_id
+    
+    print(f"Failed to get bot info: {result}")
+    return ''
 
 
 def get_user_info(user_id: str = None, open_id: str = None) -> Dict[str, str]:
@@ -1460,16 +1484,19 @@ def handle_message_receive(event_data: Dict[str, Any]) -> Dict[str, Any]:
     content = json.loads(message.get('content', '{}'))
     text = content.get('text', '').strip()
     
-    # In regular group chat, check if @bot
+    # In regular group chat, check if @bot (must be this bot, not other users)
     if chat_type == 'group':
         mentions = message.get('mentions', [])
         bot_mentioned = False
+        bot_open_id = get_bot_open_id()
         
-        # Check if bot was mentioned
+        # Check if THIS bot was mentioned (not just any @mention)
         for mention in mentions:
             mention_key = mention.get('key', '')
-            if mention_key:
-                # Remove @bot text
+            mention_open_id = mention.get('id', {}).get('open_id', '')
+            
+            if mention_key and mention_open_id == bot_open_id:
+                # Only remove bot mention and set flag when it's actually the bot
                 text = text.replace(mention_key, '').strip()
                 bot_mentioned = True
         
@@ -1564,10 +1591,16 @@ def handle_message_receive(event_data: Dict[str, Any]) -> Dict[str, Any]:
         print(f"[TIMING] create_case total: {(time.time()-t_cmd_start)*1000:.0f}ms")
         return {'statusCode': 200, 'body': json.dumps({'message': 'OK'})}
     
-    elif text.startswith('follow') or text.startswith(MESSAGES['zh']['follow']):
+    # Check for follow command - require space after keyword to avoid matching "关注人" etc.
+    follow_zh = MESSAGES['zh']['follow']
+    is_follow_cmd = (
+        text == 'follow' or text == follow_zh or
+        text.startswith('follow ') or text.startswith(follow_zh + ' ')
+    )
+    if is_follow_cmd:
         # Extract case ID
         parts = text.split(' ', 1)
-        if len(parts) < 2:
+        if len(parts) < 2 or not parts[1].strip():
             send_message(chat_id, 'text', {'text': get_message(DEFAULT_LANGUAGE, 'enter_case_id')}, reply_to_message_id=message_id)
             return {'statusCode': 200, 'body': json.dumps({'message': 'OK'})}
         
